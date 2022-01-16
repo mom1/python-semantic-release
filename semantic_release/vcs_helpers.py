@@ -44,20 +44,35 @@ def get_formatted_tag(version):
 
 
 @check_repo
-def get_commit_log(from_rev=None):
-    """Yield all commit messages from last to first."""
+def get_commits_for_chagelog(from_rev=None, to_rev=None):
+    """Yield all commits from last to first."""
     rev = None
     if from_rev:
         from_rev = get_formatted_tag(from_rev)
         try:
             repo.commit(from_rev)
-            rev = f"...{from_rev}"
+            rev = f"{from_rev}..."
         except BadName:
             logger.debug(
                 f"Reference {from_rev} does not exist, considering entire history"
             )
+    if to_rev:
+        to_rev = get_formatted_tag(to_rev)
+        try:
+            repo.commit(to_rev)
+            rev = f"{from_rev and from_rev or ''}...{to_rev}"
+        except BadName:
+            logger.debug(
+                f"Reference {to_rev} does not exist, considering entire history"
+            )
 
-    for commit in repo.iter_commits(rev):
+    yield from repo.iter_commits(rev)
+
+
+@check_repo
+def get_commit_log(from_rev=None):
+    """Yield all commit messages from last to first."""
+    for commit in get_commits_for_chagelog(from_rev):
         yield (commit.hexsha, commit.message.replace("\r\n", "\n"))
 
 

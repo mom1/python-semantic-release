@@ -4,9 +4,11 @@ import logging
 from typing import Optional
 
 from ..errors import UnknownCommitMessageStyleError
-from ..helpers import LoggedFunction
+from ..helpers import LoggedFunction, import_path
 from ..settings import config, current_commit_parser
-from ..vcs_helpers import get_commit_log
+from ..vcs_helpers import get_commit_log, get_commits_for_chagelog
+from . import processors
+from .parser_helpers import ParsedCommit
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,7 @@ def evaluate_version_bump(current_version: str, force: str = None) -> Optional[s
     changes = []
     commit_count = 0
 
-    for _hash, commit_message in get_commit_log(current_version):
+    for _, commit_message in get_commit_log(current_version):
         if commit_message.startswith(current_version):
             # Stop once we reach the current version
             # (we are looping in the order of newest -> oldest)
@@ -93,41 +95,42 @@ def generate_changelog(from_version: str, to_version: str = None) -> dict:
     # Additional sections will be added as new types are encountered
     changes: dict = {"breaking": []}
 
-    rev = None
-    if from_version:
-        rev = from_version
+    parser = current_commit_parser()
+    body_process = processors.noop
+    for processor in config.get("changelog_body_processors", "").split(","):
+        processor = processor.strip()
+        if processor:
+            body_process |= getattr(processors, processor, None) or import_path(
+                processor
+            )
 
-    found_the_release = to_version is None
-    for _hash, commit_message in get_commit_log(rev):
-        if not found_the_release:
-            # Skip until we find the last commit in this release
-            # (we are looping in the order of newest -> oldest)
-            if to_version and to_version not in commit_message:
-                continue
-            else:
-                logger.debug(
-                    f"Reached the start of {to_version}, beginning changelog generation"
-                )
-                found_the_release = True
+    subject_process = (
+        processors.noop
+        if config.get("changelog_capitalize") is False
+        else processors.capitalize
+    )
+    for processor in config.get("changelog_subject_processors", "").split(","):
+        processor = processor.strip()
+        if processor:
+            subject_process |= getattr(processors, processor, None) or import_path(
+                processor
+            )
 
-        if from_version is not None and from_version in commit_message:
-            # We reached the previous release
-            logger.debug(f"{from_version} reached, ending changelog generation")
-            break
+    for commit in get_commits_for_chagelog(from_version, to_version):
+        _hash = commit.hexsha
 
         try:
-            message = current_commit_parser()(commit_message)
+            message: ParsedCommit = parser(commit.message)
             if message.type not in changes:
                 logger.debug(f"Creating new changelog section for {message.type} ")
                 changes[message.type] = list()
 
-            # Capitalize the first letter of the message, leaving others as they were
-            # (using str.capitalize() would make the other letters lowercase)
-            formatted_message = (
-                message.descriptions[0][0].upper() + message.descriptions[0][1:]
-            )
-            if config.get("changelog_capitalize") is False:
-                formatted_message = message.descriptions[0]
+            # Processing
+            subject, body = message.descriptions[0], "\n".join(message.descriptions[1:])
+            subject, body = subject_process(subject), body_process(body)
+            formatted_message = subject
+            if body:
+                formatted_message = f"{formatted_message}\n\n{body}"
 
             # By default, feat(x): description shows up in changelog with the
             # scope bolded, like:
@@ -141,10 +144,10 @@ def generate_changelog(from_version: str, to_version: str = None) -> dict:
             if message.breaking_descriptions:
                 # Copy breaking change descriptions into changelog
                 for paragraph in message.breaking_descriptions:
-                    changes["breaking"].append((_hash, paragraph))
+                    changes["breaking"].append((_hash, subject_process(paragraph)))
             elif message.bump == 3:
                 # Major, but no breaking descriptions, use commit subject instead
-                changes["breaking"].append((_hash, message.descriptions[0]))
+                changes["breaking"].append((_hash, subject))
 
         except UnknownCommitMessageStyleError as err:
             logger.debug(f"Ignoring UnknownCommitMessageStyleError: {err}")

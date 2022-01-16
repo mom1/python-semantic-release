@@ -9,7 +9,7 @@ from . import *
 
 def test_should_generate_necessary_sections():
     with mock.patch(
-        "semantic_release.history.logs.get_commit_log",
+        "semantic_release.history.logs.get_commits_for_chagelog",
         lambda *a, **k: ALL_KINDS_OF_COMMIT_MESSAGES + [MAJOR2, UNKNOWN_STYLE],
     ):
         changelog = generate_changelog("0.0.0")
@@ -21,7 +21,7 @@ def test_should_generate_necessary_sections():
 
 def test_should_include_hash_in_section_contents():
     with mock.patch(
-        "semantic_release.history.logs.get_commit_log",
+        "semantic_release.history.logs.get_commits_for_chagelog",
         lambda *a, **k: ALL_KINDS_OF_COMMIT_MESSAGES,
     ):
         changelog = generate_changelog("0.0.0")
@@ -32,8 +32,8 @@ def test_should_include_hash_in_section_contents():
 
 def test_should_only_read_until_given_version():
     with mock.patch(
-        "semantic_release.history.logs.get_commit_log",
-        lambda *a, **k: MAJOR_LAST_RELEASE_MINOR_AFTER,
+        "semantic_release.history.logs.get_commits_for_chagelog",
+        lambda *a, **k: MAJOR_LAST_RELEASE_MINOR_AFTER[:1],
     ):
         changelog = generate_changelog("1.1.0")
         assert len(changelog["breaking"]) == 0
@@ -57,7 +57,7 @@ def test_should_only_read_until_given_version():
 )
 def test_should_get_right_breaking_description(commit, expected_description):
     with mock.patch(
-        "semantic_release.history.logs.get_commit_log",
+        "semantic_release.history.logs.get_commits_for_chagelog",
         lambda *a, **kw: [commit],
     ):
         changelog = generate_changelog("0.0.0")
@@ -66,7 +66,7 @@ def test_should_get_right_breaking_description(commit, expected_description):
 
 def test_should_get_multiple_breaking_descriptions():
     with mock.patch(
-        "semantic_release.history.logs.get_commit_log",
+        "semantic_release.history.logs.get_commits_for_chagelog",
         lambda *a, **kw: [MAJOR_MULTIPLE_FOOTERS],
     ):
         changelog = generate_changelog("0.0.0")
@@ -85,7 +85,7 @@ def test_should_get_multiple_breaking_descriptions():
 )
 def test_scope_is_included_in_changelog(commit, commit_type, expected):
     with mock.patch(
-        "semantic_release.history.logs.get_commit_log",
+        "semantic_release.history.logs.get_commits_for_chagelog",
         lambda *a, **kw: [commit],
     ):
         changelog = generate_changelog("0.0.0")
@@ -93,8 +93,8 @@ def test_scope_is_included_in_changelog(commit, commit_type, expected):
 
 
 @mock.patch(
-    "semantic_release.history.logs.get_commit_log",
-    lambda *a, **k: [("24", "fix: Fix another bug")],
+    "semantic_release.history.logs.get_commits_for_chagelog",
+    lambda *a, **k: [Commit("24", "fix: Fix another bug")],
 )
 def test_scope_is_omitted_with_empty_scope():
     changelog = generate_changelog("0.0.0")
@@ -114,7 +114,7 @@ def test_scope_is_omitted_with_empty_scope():
 )
 def test_scope_included_in_changelog_configurable(commit, commit_type):
     with mock.patch(
-        "semantic_release.history.logs.get_commit_log",
+        "semantic_release.history.logs.get_commits_for_chagelog",
         lambda *a, **kw: [commit],
     ):
         changelog = generate_changelog("0.0.0")
@@ -122,23 +122,23 @@ def test_scope_included_in_changelog_configurable(commit, commit_type):
 
 
 @mock.patch(
-    "semantic_release.history.logs.get_commit_log",
-    lambda *a, **k: [("23", "fix(x): abCD"), ("23", "fix: abCD")],
+    "semantic_release.history.logs.get_commits_for_chagelog",
+    lambda *a, **k: [Commit("23", "fix(x): abCD"), Commit("23", "fix: abCD")],
 )
 @pytest.mark.parametrize(
     "commit,config_setting,expected_description",
     [
-        (("23", "fix(x): abCD"), True, "**x:** AbCD"),
-        (("23", "fix(x): abCD"), False, "**x:** abCD"),
-        (("23", "fix: abCD"), True, "AbCD"),
-        (("23", "fix: abCD"), False, "abCD"),
+        (Commit("23", "fix(x): abCD"), True, "**x:** AbCD"),
+        (Commit("23", "fix(x): abCD"), False, "**x:** abCD"),
+        (Commit("23", "fix: abCD"), True, "AbCD"),
+        (Commit("23", "fix: abCD"), False, "abCD"),
     ],
 )
 def test_message_capitalization_is_configurable(
     commit, config_setting, expected_description
 ):
     with mock.patch(
-        "semantic_release.history.logs.get_commit_log",
+        "semantic_release.history.logs.get_commits_for_chagelog",
         lambda *a, **kw: [commit],
     ):
 
@@ -148,3 +148,14 @@ def test_message_capitalization_is_configurable(
         ):
             changelog = generate_changelog("0.0.0")
             assert changelog["fix"][0][1] == expected_description
+
+@mock.patch(
+    "semantic_release.history.config.get", wrapped_config_get(changelog_body_processors='strip')
+)
+def test_changelog_with_body():
+    with mock.patch(
+        "semantic_release.history.logs.get_commits_for_chagelog",
+        lambda *a, **kw: [Commit("23", "fix: abCD\n\nDDDD\nAaaa\n")],
+    ):
+        changelog = generate_changelog("0.0.0")
+        assert changelog["fix"][0][1] == "AbCD\n\nDDDD Aaaa"

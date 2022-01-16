@@ -1,9 +1,12 @@
 import functools
-from typing import Union
+import importlib
+from typing import Callable, Union
 
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+
+from .errors import ImproperConfigurationError
 
 
 def format_arg(value):
@@ -75,3 +78,16 @@ class LoggedFunction:
             return result
 
         return logged_func
+
+
+def import_path(path):
+    try:
+        parts = path.split(".")
+        module = ".".join(parts[:-1])
+        return getattr(importlib.import_module(module), parts[-1])
+    except (ImportError, AttributeError) as error:
+        raise ImproperConfigurationError(
+            f'Unable to import {path!r} "{error}"'
+        ) from error
+    except ValueError:
+        raise ImproperConfigurationError(f"Wrong path for import: {path!r}")

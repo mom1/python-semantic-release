@@ -2,11 +2,7 @@ import mock
 import pytest
 
 from semantic_release.changelog import markdown_changelog
-from semantic_release.changelog.changelog import (
-    add_pr_link,
-    changelog_table,
-    get_changelog_sections,
-)
+from semantic_release.changelog.changelog import changelog_table, get_changelog_sections
 from semantic_release.changelog.compare import compare_url, get_github_compare_url
 
 from . import wrapped_config_get
@@ -26,8 +22,18 @@ def test_markdown_changelog():
                 ("145", "Add non-breaking super-feature"),
                 ("134", "Add super-feature"),
             ],
-            "fix": [("234", "Fix bug in super-feature (#15)")],
-            "documentation": [("0", "Document super-feature (#189)")],
+            "fix": [
+                (
+                    "234",
+                    "Fix bug in super-feature ([#15](https://github.com/owner/repo_name/issues/15))",
+                )
+            ],
+            "documentation": [
+                (
+                    "0",
+                    "Document super-feature ([#189](https://github.com/owner/repo_name/issues/189))",
+                )
+            ],
             "performance": [],
         },
     ) == (
@@ -64,10 +70,18 @@ def test_markdown_changelog_gitlab():
             {
                 "refactor": [("12", "Refactor super-feature")],
                 "feature": [
-                    ("145", "Add non-breaking super-feature (#1)"),
+                    (
+                        "145",
+                        "Add non-breaking super-feature ([#1](https://gitlab.com/owner/repo_name/-/issues/1))",
+                    ),
                     ("134", "Add super-feature"),
                 ],
-                "documentation": [("0", "Document super-feature (#189)")],
+                "documentation": [
+                    (
+                        "0",
+                        "Document super-feature ([#189](https://gitlab.com/owner/repo_name/-/issues/189))",
+                    )
+                ],
                 "performance": [],
             },
         ) == (
@@ -92,7 +106,12 @@ def test_changelog_table():
         "repo_name",
         {
             "feature": [("sha1", "commit1"), ("sha2", "commit2")],
-            "fix": [("sha3", "commit3 (#123)")],
+            "fix": [
+                (
+                    "sha3",
+                    "commit3 ([#123](https://github.com/owner/repo_name/issues/123))",
+                )
+            ],
         },
         ["section1", "section2"],
     ) == (
@@ -143,33 +162,6 @@ def test_get_changelog_sections():
         )
         == 0
     )
-
-
-@pytest.mark.parametrize(
-    "message,hvcs,expected_output",
-    [
-        (
-            "test (#123)",
-            "github",
-            "test ([#123](https://github.com/owner/name/issues/123))",
-        ),
-        ("test without commit", "github", "test without commit"),
-        ("test (#123) in middle", "github", "test (#123) in middle"),
-        (
-            "test (#123)",
-            "gitlab",
-            "test ([#123](https://gitlab.com/owner/name/-/issues/123))",
-        ),
-        ("test without commit", "gitlab", "test without commit"),
-    ],
-)
-def test_add_pr_link(message, hvcs, expected_output):
-
-    with mock.patch(
-        "semantic_release.changelog.config.get", wrapped_config_get(hvcs=hvcs)
-    ):
-
-        assert add_pr_link("owner", "name", message) == expected_output
 
 
 def test_github_compare_url():
