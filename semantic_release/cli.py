@@ -20,7 +20,6 @@ from .history import (
     get_previous_version,
     set_new_version,
 )
-from .settings import current_commit_analyzer
 from .hvcs import (
     check_build_status,
     check_token,
@@ -30,7 +29,7 @@ from .hvcs import (
     upload_to_release,
 )
 from .repository import ArtifactRepo
-from .settings import config, overload_configuration
+from .settings import config, current_commit_analyzer, overload_configuration
 from .vcs_helpers import (
     checkout,
     commit_new_version,

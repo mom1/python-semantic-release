@@ -1,12 +1,13 @@
 """Logs
 """
 import logging
-from typing import Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ..errors import UnknownCommitMessageStyleError
 from ..helpers import LoggedFunction
 from ..settings import config, current_commit_parser
-from ..vcs_helpers import get_commit_log
+from ..vcs_helpers import get_commit_log, get_commits_beetwen
+from .parser_helpers import ParsedCommit
 
 logger = logging.getLogger(__name__)
 
@@ -152,3 +153,39 @@ def generate_changelog(from_version: str, to_version: str = None) -> dict:
             logger.debug(f"Ignoring UnknownCommitMessageStyleError: {err}")
 
     return changes
+
+
+@LoggedFunction(logger)
+def get_commits(from_version: str, to_version: str = None) -> List[Dict[str, Any]]:
+    results = []
+    commit_parser: Callable[[str], Tuple[str, str]] = current_commit_parser()
+    for commit in get_commits_beetwen(from_version, to_version):
+        message: ParsedCommit = commit_parser(commit.message)
+        results.append(
+            {
+                "commit": {
+                    "long": commit.hexsha,
+                    "short": commit.hexsha[:7],
+                },
+                "tree": {
+                    "long": commit.tree.hexsha,
+                    "short": commit.tree.hexsha[:7],
+                },
+                "author": {
+                    "name": commit.author.name,
+                    "email": commit.author.email,
+                    "date": str(commit.authored_datetime),
+                },
+                "committer": {
+                    "name": commit.committer.name,
+                    "email": commit.committer.email,
+                    "date": str(commit.committed_datetime),
+                },
+                "subject": message.descriptions[0],
+                "body": "\n\n".join(message.descriptions[1:]),
+                "hash": commit.hexsha,
+                "message": commit.message,
+                "committer_date": str(commit.committed_datetime),
+            }
+        )
+    return results

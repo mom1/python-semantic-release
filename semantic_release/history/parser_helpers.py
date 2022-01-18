@@ -20,8 +20,4 @@ def parse_paragraphs(text: str) -> List[str]:
     :param text: The text string to be divided.
     :return: A tuple of paragraphs.
     """
-    return [
-        paragraph.replace("\n", " ")
-        for paragraph in text.split("\n\n")
-        if len(paragraph) > 0
-    ]
+    return [paragraph for paragraph in text.split("\n\n") if len(paragraph) > 0]
