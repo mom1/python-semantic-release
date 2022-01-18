@@ -6,12 +6,13 @@ import re
 from datetime import date
 from functools import wraps
 from pathlib import Path, PurePath
-from typing import Optional, Tuple
+from typing import Iterator, Optional, Tuple
 from urllib.parse import urlsplit
 
 from git import GitCommandError, InvalidGitRepositoryError, Repo
 from git.exc import BadName
 from git.objects import TagObject
+from git.objects.commit import Commit
 
 from .errors import GitError, HvcsRepoParseError
 from .helpers import LoggedFunction
@@ -271,3 +272,29 @@ def checkout(branch: str):
     :param branch: The branch to checkout.
     """
     return repo.git.checkout(branch)
+
+
+@check_repo
+def get_commits_beetwen(from_rev=None, to_rev=None) -> Iterator[Commit]:
+    """Yield all commits from last to first."""
+    rev = None
+    if from_rev:
+        from_rev = get_formatted_tag(from_rev)
+        try:
+            repo.commit(from_rev)
+            rev = f"{from_rev}..."
+        except BadName:
+            logger.debug(
+                f"Reference {from_rev} does not exist, considering entire history"
+            )
+    if to_rev:
+        to_rev = get_formatted_tag(to_rev)
+        try:
+            repo.commit(to_rev)
+            rev = f"{from_rev and from_rev or ''}...{to_rev}"
+        except BadName:
+            logger.debug(
+                f"Reference {to_rev} does not exist, considering entire history"
+            )
+
+    yield from repo.iter_commits(rev)
