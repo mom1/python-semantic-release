@@ -291,7 +291,7 @@ def get_commits_beetwen(from_rev=None, to_rev=None) -> Iterator[Commit]:
         to_rev = get_formatted_tag(to_rev)
         try:
             repo.commit(to_rev)
-            rev = f"{from_rev and from_rev or ''}...{to_rev}"
+            rev = f"{from_rev and from_rev or ''}...{to_rev}~1"
         except BadName:
             logger.debug(
                 f"Reference {to_rev} does not exist, considering entire history"

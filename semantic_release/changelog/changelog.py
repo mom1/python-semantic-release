@@ -1,8 +1,17 @@
 import re
+from datetime import datetime
+from pathlib import Path
 from typing import Iterable, Optional
 
+from traitlets.traitlets import Any
+
+from ..errors import ImproperConfigurationError
+from ..history import get_new_version
+from ..history.logs import evaluate_version_bump
 from ..hvcs import Github, Gitlab
 from ..settings import config
+from ..vcs_helpers import get_formatted_tag, repo
+from .compare import compare_url
 
 
 def add_pr_link(owner: str, repo_name: str, message: str) -> str:
@@ -82,3 +91,75 @@ def changelog_table(
         output += f"| {section.title()} | {items} |\n"
 
     return output
+
+
+def changelog_template(
+    owner: str,
+    repo_name: str,
+    changelog: Any,
+    changelog_sections: list,
+    version: Optional[str] = None,
+    previous_version: Optional[str] = None,
+) -> Optional[str]:
+    try:
+        import chevron
+    except ImportError:
+        raise ImproperConfigurationError(
+            "Install `chevron` for use 'changelog_template' component"
+        )
+
+    last_release = previous_version or version
+    last_git_tag = get_formatted_tag(last_release)
+    git_head_last = ""
+
+    next_release = previous_version and version or None
+    level_bump = ""
+    git_head_next = ""
+    if not next_release:
+        # Calculate the new version
+        level_bump = evaluate_version_bump(version, config.get("force_level"))
+        next_release = get_new_version(version, level_bump)
+
+    next_git_tag = get_formatted_tag(next_release)
+
+    try:
+        tag = repo.tag(last_git_tag)
+        git_head_last = tag.commit.hexsha
+    except ValueError:
+        pass
+    try:
+        tag = repo.tag(next_git_tag)
+        git_head_next = tag.commit.hexsha
+    except ValueError:
+        pass
+
+    template_path = config.get(
+        "changelog_template", Path(__file__).parent.parent / "template.tpl"
+    )
+
+    template = Path(template_path).read_text()
+    context = {
+        "owner": owner,
+        "repo_name": repo_name,
+        "last_release": {
+            "version": last_release,
+            "git_tag": last_git_tag,
+            "git_head": git_head_last,
+        },
+        "next_release": {
+            "type": level_bump,
+            "version": next_release,
+            "git_tag": next_git_tag,
+            "git_head": git_head_next,
+        },
+        "commits": changelog,
+        "changelog_sections": changelog_sections,
+        "version": version,
+        "previous_version": previous_version,
+        "datetime": lambda fmt, _: datetime.now().strftime(fmt),
+        "compare_url": previous_version
+        and compare_url(next_release, last_release)
+        or "",
+    }
+
+    return chevron.render(template, context)

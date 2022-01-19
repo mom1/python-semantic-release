@@ -52,6 +52,7 @@ setup(
         "dataclasses==0.8; python_version < '3.7.0'",
     ],
     extras_require={
+        "mustache": ["chevron"],
         "test": [
             "coverage>=5,<6",
             "pytest>=5,<6",
