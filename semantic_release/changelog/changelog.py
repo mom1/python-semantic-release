@@ -134,7 +134,7 @@ def changelog_template(
         pass
 
     template_path = config.get(
-        "changelog_template", Path(__file__).parent.parent / "template.tpl"
+        "changelog_template", Path(__file__).parent.parent / "templates/template.tpl"
     )
 
     template = Path(template_path).read_text()

@@ -8,8 +8,12 @@
 {{/ previous_version }}
 
 {{# commits}}
-* {{subject}} [`{{commit.short}}`](https://github.com/{{owner}}/{{repo_name}}/commit/{{commit.short}})
+## {{section}}
+
+{{# commits_section}}
+*{{# scope}} **{{scope}}:**{{/scope}} {{subject}} [`{{commit.short}}`](https://github.com/{{owner}}/{{repo_name}}/commit/{{commit.short}})
 {{#body}}
 {{{body}}}
 {{/body}}
+{{/commits_section}}
 {{/commits}}

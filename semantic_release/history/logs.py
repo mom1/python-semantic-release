@@ -184,9 +184,10 @@ def get_commits(from_version: str, to_version: str = None) -> List[Dict[str, Any
                 },
                 "subject": message.descriptions[0],
                 "body": "\n\n".join(message.descriptions[1:]),
-                "hash": commit.hexsha,
                 "message": commit.message,
                 "committer_date": str(commit.committed_datetime),
+                "type": message.type,
+                "scope": message.scope,
             }
         )
     return results
