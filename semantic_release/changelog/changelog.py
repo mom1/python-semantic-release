@@ -1,9 +1,9 @@
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
-from traitlets.traitlets import Any
+from semantic_release.changelog.handlers import get_hash_link as hash_link_proc
 
 from ..errors import ImproperConfigurationError
 from ..history import get_new_version
@@ -137,7 +137,14 @@ def changelog_template(
         "changelog_template", Path(__file__).parent.parent / "templates/template.tpl"
     )
 
-    template = Path(template_path).read_text()
+    file = Path(template_path)
+    template = ""
+    if file.exists():
+        template = Path(template_path).read_text()
+    else:
+        template = (
+            Path(__file__).parent.parent / "templates" / template_path
+        ).read_text()
     context = {
         "owner": owner,
         "repo_name": repo_name,
@@ -160,6 +167,7 @@ def changelog_template(
         "compare_url": previous_version
         and compare_url(next_release, last_release)
         or "",
+        "get_hash_link": hash_link_proc,
     }
 
     return chevron.render(template, context)

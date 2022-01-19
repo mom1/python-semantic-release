@@ -108,7 +108,7 @@ def current_changelog_components() -> List[Callable]:
     for path in component_paths:
         try:
             # All except the last part is the import path
-            parts = path.split(".")
+            parts = path.strip().split(".")
             module = ".".join(parts[:-1])
             # The final part is the name of the component function
             components.append(getattr(importlib.import_module(module), parts[-1]))

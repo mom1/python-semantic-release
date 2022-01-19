@@ -53,6 +53,7 @@ setup(
     ],
     extras_require={
         "mustache": ["chevron"],
+        "emoji": ["emoji"],
         "test": [
             "coverage>=5,<6",
             "pytest>=5,<6",
