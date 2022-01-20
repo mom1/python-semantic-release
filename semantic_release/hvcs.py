@@ -50,6 +50,19 @@ class Base(object):
         # Skip on unsupported HVCS instead of raising error
         return True
 
+    @classmethod
+    def post_pull_request(
+        cls,
+        owner: str,
+        repo: str,
+        title: str,
+        changelog: str,
+        source_branch: str,
+        target_branch: str,
+        **kwargs,
+    ) -> bool:
+        raise NotImplementedError
+
 
 def _fix_mime_types():
     """Fix incorrect entries in the `mimetypes` registry.
@@ -449,6 +462,77 @@ class Gitlab(Base):
 
         return True
 
+    @classmethod
+    def post_pull_request(
+        cls,
+        owner: str,
+        repo: str,
+        title: str,
+        changelog: str,
+        source_branch: str,
+        target_branch: str,
+        remove_branch: bool,
+        squash_commits: bool,
+        allow_collaboration: bool,
+        user_id: int,
+        insecure: bool,
+    ) -> bool:
+        gl = gitlab.Gitlab(
+            Gitlab.api_url(), private_token=Gitlab.token(), ssl_verify=not insecure
+        )
+        project_str = f"{owner}/{repo}"
+        try:
+            project = gl.projects.get(project_str)
+        except gitlab.exceptions.GitlabAuthenticationError:
+            logger.warning(
+                f"Unable to get project {project_str}."
+                "Unauthorised access, check your access token is valid."
+            )
+            return False
+        except gitlab.exceptions.GitlabGetError:
+            logger.warning(f"Unable to get project {project_str}.")
+            return False
+
+        target_branch = target_branch or project.default_branch
+
+        # Checks if the MR is valid
+        if source_branch == target_branch:
+            logger.debug(
+                "Source Branch and Target branches must be different,"
+                f"source: {source_branch} and target: {target_branch}."
+            )
+            return False
+
+        # Checks if an MR already exists.
+        mrs = project.mergerequests.list(state="opened")
+        existing_mr = next(
+            (
+                True
+                for mr in mrs
+                if mr.source_branch == source_branch
+                and mr.target_branch == target_branch
+            ),
+            None,
+        )
+        if existing_mr:
+            logger.debug(
+                f"no new merge request opened, one already exists for this branch {source_branch} to {target_branch}."
+            )
+            return False
+
+        data = {
+            "source_branch": source_branch,
+            "target_branch": target_branch,
+            "remove_source_branch": remove_branch,
+            "squash": squash_commits,
+            "title": title,
+            "assignee_ids": user_id,
+            "description": changelog,
+            "allow_collaboration": allow_collaboration,
+        }
+        project.mergerequests.create(data)
+        logger.debug(f"Created a new MR {title}, assigned to you.")
+
 
 @LoggedFunction(logger)
 def get_hvcs() -> Base:
@@ -530,3 +614,24 @@ def check_token() -> bool:
     :return: A boolean telling if there is a token.
     """
     return get_hvcs().token() is not None
+
+
+def post_pull_request(
+    owner: str,
+    repository: str,
+    title: str,
+    changelog: str,
+    source_branch: str,
+    target_branch: str,
+    **kwargs,
+) -> bool:
+    """
+    Create the Merge request to the current hvcs release API
+
+    :param owner: The owner of the repository
+    :param repository: The repository name
+    """
+    logger.debug(f"Posting pull request for {owner}/{repository} ")
+    return get_hvcs().post_pull_request(
+        owner, repository, title, changelog, source_branch, target_branch, **kwargs
+    )

@@ -156,11 +156,13 @@ def generate_changelog(from_version: str, to_version: str = None) -> dict:
 
 
 @LoggedFunction(logger)
-def get_commits(from_version: str, to_version: str = None) -> List[Dict[str, Any]]:
+def get_commits(
+    from_version: str, to_version: str = None, rev: str = None
+) -> List[Dict[str, Any]]:
     results = []
     commit_parser: Callable[[str], Tuple[str, str]] = current_commit_parser()
 
-    for commit in get_commits_beetwen(from_version, to_version):
+    for commit in get_commits_beetwen(from_version, to_version, rev):
         message: ParsedCommit = commit_parser(commit.message)
         results.append(
             {

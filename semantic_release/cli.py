@@ -26,6 +26,7 @@ from .hvcs import (
     get_domain,
     get_token,
     post_changelog,
+    post_pull_request,
     upload_to_release,
 )
 from .repository import ArtifactRepo
@@ -333,6 +334,39 @@ def publish(retry: bool = False, noop: bool = False, **kwargs):
     # else: Since version shows a message on failure, we do not need to print another.
 
 
+def merge_request(
+    title: str = "",
+    commit_prefix: str = "",
+    source_branch: str = "",
+    target_branch: str = "",
+    **kwargs,
+):
+    """Creates a pull request with a changes between branches.
+
+    Now works only with `semantic_release.history.logs.get_commits`
+    """
+    target_branch = target_branch or config.get("branch")
+    mr_title = title or source_branch
+    if commit_prefix:
+        mr_title = f"{commit_prefix}: {mr_title}"
+
+    owner, name = get_repository_owner_and_name()
+
+    log = commit_analyzer(None, None, f"{source_branch}...{target_branch or ''}")
+
+    return post_pull_request(
+        owner=owner,
+        repository=name,
+        changelog=markdown_changelog(
+            owner, name, get_current_version(), log, header=False
+        ),
+        title=mr_title,
+        source_branch=source_branch,
+        target_branch=target_branch,
+        **kwargs,
+    )
+
+
 def filter_output_for_secrets(message):
     """Remove secrets from cli output."""
     output = message
@@ -434,6 +468,57 @@ def cmd_version(**kwargs):
 def cmd_print_version(**kwargs):
     try:
         return print_version(**kwargs)
+    except Exception as error:
+        print(filter_output_for_secrets(str(error)), file=sys.stderr)
+        exit(1)
+
+
+@main.command(name="merge_request", help=merge_request.__doc__)
+@click.option(
+    "--source-branch",
+    envvar="CI_COMMIT_REF_NAME",
+    required=True,
+    help="The source branch to merge into.",
+)
+@click.option(
+    "--target-branch",
+    "-t",
+    envvar="CI_DEFAULT_BRANCH",
+    help="The target branch to merge onto.",
+)
+@click.option(
+    "--user-id",
+    envvar="GITLAB_USER_ID",
+    required=True,
+    type=int,
+    multiple=True,
+    help="The GitLab user ID(s) to assign the created MR to.",
+)
+@click.option(
+    "--commit-prefix", "-c", default="WIP", help="Prefix for the MR title i.e. WIP."
+)
+@click.option(
+    "--remove-branch",
+    "-r",
+    is_flag=True,
+    help="If set will remove the source branch after MR.",
+)
+@click.option(
+    "--squash-commits", "-s", is_flag=True, help="If set will squash commits on merge."
+)
+@click.option("--title", type=str, help="Custom tile for the MR.")
+@click.option(
+    "--allow-collaboration",
+    "-a",
+    is_flag=True,
+    help="If set allow, commits from members who can merge to the target branch.",
+)
+@click.option(
+    "--insecure", "-k", is_flag=True, help="Do not verify server SSL certificate."
+)
+def cmd_merge_request(**kwargs):
+    try:
+        return merge_request(**kwargs)
     except Exception as error:
         print(filter_output_for_secrets(str(error)), file=sys.stderr)
         exit(1)

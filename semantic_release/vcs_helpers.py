@@ -275,9 +275,10 @@ def checkout(branch: str):
 
 
 @check_repo
-def get_commits_beetwen(from_rev=None, to_rev=None) -> Iterator[Commit]:
+def get_commits_beetwen(
+    from_rev=None, to_rev=None, rev: str = None
+) -> Iterator[Commit]:
     """Yield all commits from last to first."""
-    rev = None
     if from_rev:
         from_rev = get_formatted_tag(from_rev)
         try:
