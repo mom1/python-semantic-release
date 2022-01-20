@@ -3,14 +3,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from semantic_release.changelog.handlers import get_hash_link as hash_link_proc
-
 from ..errors import ImproperConfigurationError
 from ..history import get_new_version
 from ..history.logs import evaluate_version_bump
 from ..hvcs import Github, Gitlab
 from ..settings import config
 from ..vcs_helpers import get_formatted_tag, repo
+from . import handlers
 from .compare import compare_url
 
 
@@ -167,7 +166,7 @@ def changelog_template(
         "compare_url": previous_version
         and compare_url(next_release, last_release)
         or "",
-        "get_hash_link": hash_link_proc,
+        "get_hash_link": handlers.get_hash_link,
     }
 
     return chevron.render(template, context)

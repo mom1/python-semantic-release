@@ -15,4 +15,4 @@ def test_parse_paragraphs():
 
 def test_parse_paragraphs_multiline():
     paragraphs = parse_paragraphs("This paragraph is over\nmultiple lines.")
-    assert paragraphs[0] == "This paragraph is over multiple lines."
+    assert paragraphs[0] == "This paragraph is over\nmultiple lines."
