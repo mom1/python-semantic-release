@@ -38,7 +38,7 @@ class TextProc:
 class ReSub:
     __slots__ = ("compile_pattern", "func", "__name__", "kwargs")
 
-    def __init__(self, pattern: Union[AnyStr, Pattern], flags=re.I, **kwargs):
+    def __init__(self, pattern: Union[AnyStr, Pattern[AnyStr]], flags=re.I, **kwargs):
         self.compile_pattern: Pattern = re.compile(pattern, flags=flags)
         self.kwargs = kwargs
         self.__name__ = "ReSub"
@@ -174,7 +174,7 @@ else:
         return msg and emoji.emojize(msg, use_aliases=True) or msg
 
     @ReSub(r"(:(\w+):)\s")
-    def remove_emoji(msg: str, pattern: Pattern[AnyStr]):
+    def remove_emoji(msg: str, pattern: Pattern[str]):
         """remove_emoji.
 
         :recycle: -> ''

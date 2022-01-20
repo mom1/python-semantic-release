@@ -1,12 +1,12 @@
 from collections import defaultdict
-from itertools import chain
+from typing import Any, DefaultDict, Dict, List
 
 from ..settings import config
 
 try:
     from .processing import get_handler
 except ImportError:
-    get_handler = lambda x, y=None: lambda z: z
+    get_handler = lambda *args, **kwargs: lambda *args: ""
 
 
 def changelog_grouping(
@@ -46,7 +46,7 @@ def changelog_composite_grouping(owner: str, repo_name: str, changelog: list, **
         for i in config.get(f"composite_groups_{group}", "").split(","):
             groups[i.strip()] = group
 
-    sections = defaultdict(list)
+    sections: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
     handler = get_handler("changelog_section_handlers")
     ignore_types = set(
         i.strip() for i in config.get("composite_groups_ignore_types", "").split(",")

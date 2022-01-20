@@ -3,10 +3,11 @@
 https://github.com/carloscuesta/gitmoji/blob/master/src/data/gitmojis.json.
 """
 import re
+from typing import Dict, List, Optional
 
 _EMOJI_REGEXP = None
 
-gitmojis = [
+gitmojis: List[Dict[str, Optional[str]]] = [
     {
         "emoji": "🎨",
         "entity": "&#x1f3a8;",

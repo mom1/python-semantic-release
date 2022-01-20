@@ -471,14 +471,10 @@ class Gitlab(Base):
         changelog: str,
         source_branch: str,
         target_branch: str,
-        remove_branch: bool,
-        squash_commits: bool,
-        allow_collaboration: bool,
-        user_id: int,
-        insecure: bool,
+        **kwargs,
     ) -> bool:
         gl = gitlab.Gitlab(
-            Gitlab.api_url(), private_token=Gitlab.token(), ssl_verify=not insecure
+            Gitlab.api_url(), private_token=Gitlab.token(), ssl_verify=not kwargs.get('insecure')
         )
         project_str = f"{owner}/{repo}"
         try:
@@ -523,16 +519,16 @@ class Gitlab(Base):
         data = {
             "source_branch": source_branch,
             "target_branch": target_branch,
-            "remove_source_branch": remove_branch,
-            "squash": squash_commits,
+            "remove_source_branch": kwargs.get('remove_branch'),
+            "squash": kwargs.get('squash_commits'),
             "title": title,
-            "assignee_ids": user_id,
+            "assignee_ids": kwargs.get('user_id'),
             "description": changelog,
-            "allow_collaboration": allow_collaboration,
+            "allow_collaboration": kwargs.get('allow_collaboration'),
         }
         project.mergerequests.create(data)
         logger.debug(f"Created a new MR {title}, assigned to you.")
-
+        return True
 
 @LoggedFunction(logger)
 def get_hvcs() -> Base:
